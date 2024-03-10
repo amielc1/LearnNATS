@@ -1,45 +1,18 @@
-﻿using NATS.Client;
-using System;
+﻿using System.Text.Json;
 using System.Text;
-using System.Threading;
 
-namespace NatsTest1
+var opts = ConnectionFactory.GetDefaultOptions();
+opts.Url = "nats://localhost:4222"; // Adjust as necessary
+using (var conn = new ConnectionFactory().CreateConnection(opts))
 {
-    internal class Program
+    var request = new MissionRequest
     {
-        static void Main(string[] args)
-        {
-            //conexão
-            var cf = new ConnectionFactory();
-            var c = cf.CreateConnection();
+        MissionName = "Retrieve Data" // Example request, adjust as necessary
+    };
 
-            //Subscrição
-            EventHandler<MsgHandlerEventArgs> h = (sender, args) =>
-            {
-                Console.WriteLine($"{DateTime.Now:F} - Received: {args.Message}");
-            };
+    var requestJson = JsonSerializer.Serialize(request);
+    var responseMsg = conn.Request("missionRequest", Encoding.UTF8.GetBytes(requestJson), 5000); // 5000ms timeout
 
-            var sAsync = c.SubscribeAsync("foo");
-
-            sAsync.MessageHandler += h;
-            sAsync.Start();
-
-            // Informação / mensagem / evento
-            var message = "Hello World!";
-            Console.WriteLine($"{DateTime.Now:F} - Send: {message}");
-
-            //Publicação
-            c.Publish("foo", Encoding.UTF8.GetBytes(message));
-
-            Thread.Sleep(1000);
-
-            // Desconectando
-            sAsync.Unsubscribe();
-            c.Drain();
-            c.Close();
-
-
-            Console.ReadLine();
-        }
-    }
-}
+    var response = JsonSerializer.Deserialize<MissionParameters>(Encoding.UTF8.GetString(responseMsg.Data));
+    Console.WriteLine($"Response received: MissionName = {response.MissionName}, MissionStatus = {response.MissionStatus}");
+      
